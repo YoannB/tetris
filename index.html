@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Tetris</title>
+<meta http-equiv="content-type" content="Content-Type: application/vnd.hbbtv.xhtml+xml; charset=UTF-8" />
+<style type="text/css">
+	body {
+		width:100%; /* 1280px; */
+		height:100%; /* 720px; */
+		overflow:hidden;
+		text-align:center;
+		color:#474747;
+		background:#171717;
+		filter: progid:DXImageTransform.Microsoft.Gradient(startColorStr='#1a1a1a', endColorStr='#171717'); /* #7db5fe #f2f2f2 */
+		background: -webkit-gradient(linear, left top, left bottom, from(#1a1a1a), to(#171717));
+		background: -webkit-linear-gradient(#1a1a1a, #171717);
+		background: -moz-linear-gradient(top,  #1a1a1a,  #171717);
+		background: -ms-linear-gradient(top,  #1a1a1a,  #171717);
+		background: -o-linear-gradient(top,  #1a1a1a,  #171717);
+		background: linear-gradient(#1a1a1a, #171717);
+	}
+	body,ul,li {			
+		margin:0;
+		padding:0;
+	}
+	ul {
+		list-style: none;
+	}
+	.hidden {
+		position:absolute;
+		top:-10000px;
+		left:-10000px;
+		visibility:hidden;
+	}
+	/** TETRIS **/
+	.tetris {
+		margin-top:50px;
+		margin-left: auto;
+		margin-right: auto;
+		text-align: center;
+	}
+	.tetris .grid {
+		background-color:#f2f2f2;
+	}
+	.tetris .next-piece {
+		background-color:#f2f2f2;
+	}
+	.tetris .controls {
+	
+	}
+	.tetris .content {
+	    margin: 0 auto;
+        width: 430px;
+	}
+	.tetris .left {
+		float:left;
+	}
+	.tetris .right {
+		float:left;
+	}
+	.tetris .right .top .title {
+		color:#f2f2f2;
+		font-size:22px;
+		text-align:left;
+	}
+	.tetris .right .top .next-piece {
+	
+	}
+	.tetris .right .bottom {
+		
+	}
+	.tetris .right .bottom .score {
+		color:#f2f2f2;
+		font-size:22px;
+		text-align:left;
+	}
+	.tetris .description {
+		color:#f2f2f2;
+		font-size:22px;
+		text-align:left;
+		width: 430px;
+		margin: 0 auto;
+	}
+	
+	/* clearfix */
+	.tetris	:after { content: "."; display: block; clear: both; visibility: hidden; line-height: 0; height: 0; }
+	.tetris	 { display: inline-block; }
+	html[xmlns] .tetris	 { display: block; }
+	* html .tetris	 { height: 1%; }	
+	
+</style>
+<script type="text/javascript">
+
+	var addClassName = function (object, classname) {
+		if (object != null) {
+			if (hasClassName(object, classname)) {
+				removeClassName(object, classname);
+			}
+			setClassName(object, getClassName(object)+" "+classname);
+		}
+	};
+	var removeClassName = function (object, classname) {
+		if (object != null) {
+			if (hasClassName(object, classname)) {
+				var classe = getClassName(object);
+				var reg = new RegExp('\\b'+classname+'\\b');
+				var classes = classe.split(reg);
+				var newClasse = "";
+				for (var i = 0; i < classes.length; i++) {
+					newClasse += " " + classes[i];
+				}
+				setClassName(object,newClasse);
+			}
+		}
+	};
+	var hasClassName = function (object, classname) {
+		if (object != null) {
+			var classe = this.getClassName(object);
+			if (classe) {
+				return (classe.indexOf(classname) > -1);
+			}
+		}
+		return false;
+	};
+	var setClassName = function (object, classname) {
+		if (object != null) {
+			//if (this.isIE) {
+			//	object.setAttribute("className",classname);
+			//} else {
+				object.className = classname;
+			//}
+		}
+	};
+	var getClassName = function (object) {
+		if (object != null) {
+			//if (this.isIE) {
+			//	return object.getAttribute("className");
+			//} else {
+				return object.className;
+			//}
+		}
+	};
+	
+	var _createElement = function (type,className) {
+		var el = document.createElement(type);
+		el.className = className;
+		return el;
+	};
+	
+	var _setTextContent = function (el,text) {
+		el.innerHTML = text;
+	};
+	
+	var getKeyCode = function (e) {
+		var ev = e || window.event;
+		var code = null;
+		if (ev) {
+			if (ev.keyCode) code = ev.keyCode;
+			else if (ev.which) code = ev.which;
+		}
+		return code;
+	};
+	
+	var stopPropagation = function (e) {
+		if (e) {
+			if (e.bubbles === undefined) {  
+				// Internet Exlorer always cancel bubbling
+				e.cancelBubble = true;
+				e.returnValue = false;
+			} else {
+				// Firefox, Opera, Google Chrome and Safari
+				if (e.stopPropagation) e.stopPropagation();
+				if (e.preventDefault) e.preventDefault();
+			}
+		}
+		return false;
+	};
+	
+	Canvas = (function () {
+		var ctx = null,
+			height = null,
+			width = null,
+			path = null;
+		
+		/** fonction pour rÃƒÂ©initialiser le context **/
+		var initContext = function () {
+			ctx.restore();
+			ctx.save();
+			ctx.translate(0,0);
+		};
+		/** Restauration du context **/
+		var restoreContext = function () {
+			ctx.restore();
+		};
+		/** Sauvegarde du context **/
+		var saveContext = function () {
+			ctx.save();
+		};
+		/** Efface la zone spÃƒÂ©cifiÃƒÂ©e et la rend entiÃƒÂ©rement transparente **/
+		var clearContext = function () {
+			ctx.clearRect(0,0,width,height);
+		};
+		/** Modifie la couleur du tracÃƒÂ© **/
+		var setFillStyle = function (color) {
+			color = color || "#000000";
+			ctx.fillStyle = color;
+		};	
+		/** Modifie la couleur du tracÃƒÂ© **/
+		var setStrokeStyle = function (color) {
+			color = color || "#000000";
+			ctx.strokeStyle = color;
+		};
+		var setLineCap = function (lineCap) {
+			lineCap = lineCap || "butt"; // round, square
+			ctx.lineCap = lineCap;
+		};
+		var setLineJoin = function (lineJoin) {
+			lineJoin = lineJoin || "miter"; // round, bevel
+			ctx.lineJoin = lineJoin;
+		};
+		/** RÃƒÂ©alise le tracÃƒÂ© **/
+		var doPath = function () {
+			if (path == "fill") {
+				ctx.fill();	
+			} else {
+				// path == "stroke" ou path == null
+				ctx.stroke();	
+			}
+		};	
+		var beginPath = function () {
+			ctx.beginPath();
+		};
+		var closePath = function () {
+			ctx.closePath();
+		};
+		/** Deplace le curseur **/
+		var moveTo = function (x,y) {
+			ctx.moveTo(x,y);
+		};
+		/** dessine une ligne **/
+		var lineTo = function (x,y) {
+			ctx.lineTo(x,y);
+		};
+		/** dessine une ligne **/
+		var arc = function (x,y,r,start,stop) {
+			ctx.arc(x,y,r,start,stop,false);
+		};
+		/** dessine une ligne verticale **/
+		var drawVerticalLine = function (x,y,h,started,closed) {
+			if (started) ctx.beginPath();
+			ctx.moveTo(x,y);
+			ctx.lineTo(x,y+h);
+			if (closed) doPath();	
+		};
+		/** dessine une ligne horizontale **/
+		var drawHorizontalLine = function (x,y,l,started,closed) {
+			if (started) ctx.beginPath();
+			ctx.moveTo(x,y);
+			ctx.lineTo(x+l,y);
+			if (closed) doPath();	
+		};
+		/** dessine un rectangle **/
+		var drawRectangle = function (x,y,h,l) {
+			setLineJoin("round");
+			if (path == "fill") {
+				ctx.fillRect(x,y,l,h);	
+			} else {
+				// path == "stroke" ou path == null
+				ctx.strokeRect(x,y,l,h);	
+			}
+		};
+		/** dessine un carrÃƒÂ© **/
+		var drawSquare = function (x,y,l) {
+			drawRectangle(x,y,l,l);
+		};
+		/** dessine un cercle **/
+		var drawCircle = function (x,y,r,position) {
+			var start = 0,
+				stop = 2;
+			switch(position) {
+				case 'N' : 
+					start = 3/2,
+					stop = 7/2;
+					break;
+				case 'S' : 
+					start = 1/2,
+					stop = 5/2;
+					break;
+				case 'W' : 
+					start = 1,
+					stop = 3;
+					break;
+				default : 
+					break;
+			}
+			drawArc(x,y,r,Math.PI*start,Math.PI*stop);
+		};
+		/** dessine un arc de cercle **/
+		var drawArc = function (x,y,r,start,stop) {
+			ctx.moveTo(x,y-r);
+			ctx.beginPath();
+			ctx.arc(x,y,r,start,stop,false);
+			doPath();
+		};
+		/** dessine une bulle **/
+		var drawBubble = function (ctx, x, y, w, h, radius) {
+			var r = x + w;
+			var b = y + h;
+			ctx.beginPath();
+			ctx.strokeStyle="black";
+			ctx.lineWidth="2";
+			ctx.moveTo(x+radius, y);
+			ctx.lineTo(x+radius/2, y-10);
+			ctx.lineTo(x+radius * 2, y);
+			ctx.lineTo(r-radius, y);
+			ctx.quadraticCurveTo(r, y, r, y+radius);
+			ctx.lineTo(r, y+h-radius);
+			ctx.quadraticCurveTo(r, b, r-radius, b);
+			ctx.lineTo(x+radius, b);
+			ctx.quadraticCurveTo(x, b, x, b-radius);
+			ctx.lineTo(x, y+radius);
+			ctx.quadraticCurveTo(x, y, x+radius, y);
+			ctx.stroke();
+		};
+
+		// Objet retour
+		return {
+			getContext : function (canvas) {
+				return canvas.getContext('2d');
+			},
+			initContext : function (canvas) {
+				ctx = canvas.getContext('2d');
+				initContext();
+			},
+			clearContext : function (canvas) {
+				ctx = canvas.getContext('2d');
+				height = canvas.height;
+				width = canvas.width;
+				clearContext();
+			},
+			/** Restauration du context **/
+			restoreContext : function (canvas) {
+				ctx = canvas.getContext('2d');
+				restoreContext();
+			},
+			/** Sauvegarde du context **/
+			saveContext : function (canvas) {
+				ctx = canvas.getContext('2d');
+				saveContext();
+			},
+			setPath : function (p) {
+				path = p;
+			},
+			setStyle : function (canvas, color) {
+				ctx = canvas.getContext('2d');
+				setFillStyle(color);
+				setStrokeStyle(color);
+			},
+			doPath : function (canvas) {
+				ctx = canvas.getContext('2d');
+				doPath();
+			},
+			beginPath : function (canvas) {
+				ctx = canvas.getContext('2d');
+				beginPath();
+			},
+			closePath : function (canvas) {
+				ctx = canvas.getContext('2d');
+				closePath();
+			},
+			moveTo : function (canvas,x,y) {
+				ctx = canvas.getContext('2d');
+				moveTo(x,y);
+			},
+			lineTo : function (canvas,x,y) {
+				ctx = canvas.getContext('2d');
+				lineTo(x,y);
+			},
+			arc : function (canvas,x,y,r,start,stop,init) {
+				ctx = canvas.getContext('2d');
+				init = init || 0;
+				arc(x,y,r,start+init,stop+init);
+				return {
+					x : x + r*Math.cos(stop+init),
+					y : y + r*Math.sin(stop+init)
+				}
+			},
+			drawVerticalLine : function (canvas,x,y,h) {
+				ctx = canvas.getContext('2d');
+				drawVerticalLine(x,y,h,true,true);
+			},
+			drawHorizontalLine : function (canvas,x,y,l) {
+				ctx = canvas.getContext('2d');
+				drawHorizontalLine(x,y,l,true,true);
+			},
+			// Canvas.drawRectangle("canvas",100,100,10,20);
+			drawRectangle : function (canvas,x,y,h,l) {
+				ctx = canvas.getContext('2d');
+				drawRectangle(x,y,h,l);
+			},
+			// Canvas.drawSquare("canvas",100,100,10);
+			drawSquare : function (canvas,x,y,l) {
+				ctx = canvas.getContext('2d');
+				drawSquare(x,y,l);
+			},
+			// Canvas.drawCircle("canvas",50,50,20);
+			drawCircle : function (canvas,x,y,r,position) {
+				ctx = canvas.getContext('2d');
+				drawCircle(x,y,r,position);
+			},
+			// Canvas.drawArc("canvas",50,50,20,0,Math.PI*2);
+			drawArc : function (canvas,x,y,r,position,start,stop) {
+				ctx = canvas.getContext('2d');
+				drawArc(x,y,r,position,start,stop);
+			}
+		};
+	})();
+	
+	/**
+	  * Tetris
+	  *
+	  * author: gwivv
+	  */
+	var TetrisCanvas = (function () {
+		self = {};
+		
+		var setOptions = function (options) {
+			self.options = options || {};
+			self.options.className = self.options.className || "tetris";
+			self.options.loadTopScore = self.options.loadTopScore || function () {};
+			self.options.saveTopScore = self.options.saveTopScore || function () {};
+		};
+		var createNodes = function () {
+			self.dom = {};
+			self.domNode = _createElement("DIV",self.options.className);
+			// controls 
+			self.dom.controls = _createElement("DIV","controls");
+			self.dom.buttonNew = _createElement("BUTTON","new");
+			self.dom.controls.appendChild(self.dom.buttonNew);
+			self.dom.buttonPause = _createElement("BUTTON","pause");
+			self.dom.controls.appendChild(self.dom.buttonPause);
+			var content = _createElement("DIV","content");
+			// left content
+			self.dom.leftContent = _createElement("DIV","left");
+			self.dom.canvas = _createElement("CANVAS","grid");
+			self.dom.canvas.width = 200;
+			self.dom.canvas.height = 400;
+			self.dom.leftContent.appendChild(self.dom.canvas);
+			// right content
+			self.dom.rightContent = _createElement("DIV","right");
+			var top = _createElement("DIV","top");
+			self.dom.titleNextPiece = _createElement("DIV","title");
+			top.appendChild(self.dom.titleNextPiece);
+			self.dom.canvasNextPiece = _createElement("CANVAS","next-piece");
+			self.dom.canvasNextPiece.width = 100;
+			self.dom.canvasNextPiece.height = 100;
+			top.appendChild(self.dom.canvasNextPiece);
+			self.dom.rightContent.appendChild(top);
+			var bottom = _createElement("DIV","bottom");
+			self.dom.score = _createElement("DIV","score");
+			bottom.appendChild(self.dom.score);
+			self.dom.rightContent.appendChild(bottom);
+			
+			self.dom.description = _createElement("DIV","description");
+			
+			self.domNode.appendChild(self.dom.controls);
+			content.appendChild(self.dom.leftContent);
+			content.appendChild(self.dom.rightContent);
+			self.domNode.appendChild(content);
+			self.domNode.appendChild(self.dom.description);
+			
+			document.body.appendChild(self.domNode);
+		};
+		var updateText = function () {
+			_setTextContent(self.dom.buttonNew,"Nouveau jeu (N)");
+			_setTextContent(self.dom.buttonPause,"Pause (P)");
+			_setTextContent(self.dom.titleNextPiece,"Pièce suivante : ");
+			_setTextContent(self.dom.description,"Utilisation des flêches DROITE et GAUCHE pour déplacer les pièces, HAUT et BAS pour tourner les pièces et ENTREE pour faire descendre");
+		};
+		var addEventListeners = function () {
+			
+		};
+		var ready = function() {
+			_makeTetris();
+		};
+		var _makeTetris = function () {
+			var that = this;
+			// variables
+			var speed = 500,
+				currentSpeed = 500,
+				maxSpeed = 1,
+				interval = null,
+				currentPiece = null,
+				nextPiece = null,
+				iteration = null,
+				horizontalPosition = null,
+				sensPosition = null,		
+				grid = null, // la grille du tetris
+				currentGrid = null,
+				nbLineDestroy = null,
+				totalScore = null,
+				pieceScore = 10,
+				lineDestroyScore = 100,
+				comboScore = 200,
+				tripleScore = 400,
+				tetrisScore = 1000,
+				topScore = null;
+			// la liste des pièces disponibles
+			var pieces = [
+				{
+					x : [4,1,4,1],
+					y : [1,4,1,4],
+					color : "#FA8072",
+					matrix: [ [[1],
+								[1],
+								[1],
+								[1]],
+							  [[1,1,1,1]],
+							  [[1],
+								[1],
+								[1],
+								[1]],
+							  [[1,1,1,1]]
+							]
+				},
+				{
+					x : [3,2,3,2],
+					y : [2,3,2,3],
+					color : "#9EC7FE",
+					matrix : [ [[1,0],
+								[1,0],
+								[1,1]],
+								[[1,1,1],
+								[1,0,0]],
+								[[1,1],
+								[0,1],
+								[0,1]],
+								[[0,0,1],
+								[1,1,1]]
+							]
+				},
+				{
+					x : [3,2,3,2],
+					y : [2,3,2,3],
+					color : "#3CB371",
+					matrix : [ [[0,1],
+								[0,1],
+								[1,1]],
+								[[1,0,0],
+								[1,1,1]],
+								[[1,1],
+								[1,0],
+								[1,0]],
+								[[1,1,1],
+								[0,0,1]]
+							]
+				},
+				{
+					x : [3,2,3,2],
+					y : [2,3,2,3],
+					color : "#FFA500",
+					matrix : [ [[0,1],
+								[1,1],
+								[1,0]],
+								[[1,1,0],
+								[0,1,1]],
+								[[0,1],
+								[1,1],
+								[1,0]],
+								[[1,1,0],
+								[0,1,1]]
+							]
+				},
+				{
+					x : [3,2,3,2],
+					y : [2,3,2,3],
+					color : "#FFC0CB",
+					matrix : [ [[1,0],
+								[1,1],
+								[0,1]],
+								[[0,1,1],
+								[1,1,0]],
+								[[1,0],
+								[1,1],
+								[0,1]],
+								[[0,1,1],
+								[1,1,0]]
+							]
+				},
+				{
+					x : [2,2,2,2],
+					y : [2,2,2,2],
+					color : "#C0C0C0",
+					matrix : [ [[1,1],
+								[1,1]],
+								[[1,1],
+								[1,1]],
+								[[1,1],
+								[1,1]],
+								[[1,1],
+								[1,1]]
+							]
+				},
+				{
+					x : [3,2,3,2],
+					y : [2,3,2,3],
+					color : "#800080",
+					matrix : [ [[1,0],
+								[1,1],
+								[1,0]],
+								[[1,1,1],
+								[0,1,0]],
+								[[0,1],
+								[1,1],
+								[0,1]],
+								[[0,1,0],
+								[1,1,1]]
+							]
+				}
+			];
+			/** 
+			*		Partie CANVAS 
+			**/			
+			var ctx = self.dom.canvas.getContext('2d');
+			Canvas.initContext(self.dom.canvas);
+			Canvas.clearContext(self.dom.canvas);
+			ctx.lineCap = "round";
+			ctx.fillStyle = "#000000";
+			// restore final !
+			ctx.restore();
+			/** 
+			*		Partie JAVASCRIPT 
+			**/
+			self.dom.buttonNew.onclick = function () {
+				newGame();
+			};	
+			self.dom.buttonPause.onclick = function () {
+				pause();
+			};
+			var newGame = function () {
+				grid = [[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0],
+						[0,0,0,0,0,0,0,0,0,0]];
+				currentGrid =  [[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0],
+								[0,0,0,0,0,0,0,0,0,0]];
+				// préparation pièce
+				reset();
+				nextPiece = null;
+				// ligne et score
+				nbLineDestroy = 0;
+				totalScore = 0;
+				// topScore
+				topScore = loadTopScore() || 0;
+				// mise à jour score
+				updateScore();
+				clearInterval(interval);
+				Canvas.clearContext(self.dom.canvas);
+				// début du jeu
+				startGame();
+
+				_setTextContent(self.dom.buttonPause,"Bouton PAUSE");
+			};
+			var pause = function () {
+				if (interval == null) {
+					_setTextContent(self.dom.buttonPause,"Bouton PAUSE");
+					startGame();
+				} else {
+					_setTextContent(self.dom.buttonPause,"Bouton PLAY");
+					clearInterval(interval);
+					interval = null;
+				}
+			};
+			var reset = function () {
+				iteration = 0;
+				horizontalPosition = 4;
+				sensPosition = 0;
+				currentPiece = null;
+			};
+			var startGame = function () {
+				// maj
+				interval = setInterval(function () {
+					if (self.dom.canvas != null) {
+						if (currentPiece == null) {
+							currentPiece = nextPiece || getNewPiece();
+							nextPiece = getNewPiece();
+							makeCanvasNext();
+							iteration = 0;
+							horizontalPosition = 4;
+							sensPosition = 0;
+						} else {
+							iteration++;
+						}
+						var canMove = canMoveTest(horizontalPosition,sensPosition);
+						if (canMove) {
+							moveAction();
+						} else if (!canMove && iteration == 0) {
+							// fin de la partie
+							reset();
+							clearInterval(interval);
+							// sauvegarde du meilleur score
+							if (topScore < totalScore) {
+								topScore = totalScore;
+								saveTopScore(topScore);
+								updateScore();
+								//new Gjs.widget.Alert({message:"Partie finie <b style='color:red'>Nouveau record</b>, score : "+totalScore+",<br>cliquez sur nouveau pour recommencer."});
+							} else {
+								//new Gjs.widget.Alert({message:"Partie finie, score : "+totalScore+",<br>cliquez sur nouveau pour recommencer."});
+							}
+						} else {
+							reset();
+							// remise de la vitesse en cours
+							currentSpeed = speed;
+							clearInterval(interval);
+							startGame();
+							// mise à jour de grid
+							for (var i = 0; i < grid.length; i++) {
+								for (var j = 0; j < grid[i].length; j++) {
+									grid[i][j] = currentGrid[i][j];
+								}
+							}
+							// score pièce
+							totalScore += pieceScore;
+							// suppression des lignes complétes
+							destroyLines();
+						}
+						// dessine le tetris
+						makeCanvasGrid();
+					} else {
+						clearInterval(interval);
+					}
+				},currentSpeed);
+			};
+			var getRandomEl = function (list) {
+				var i = Math.floor(Math.random()*list.length);
+				return list[i];
+			};
+			var getNewPiece = function () {
+				return getRandomEl(pieces);
+			};
+			var destroyLines = function () {
+				var line = null,
+					totalLine = null,
+					destroy = 0;
+				for (var i = 0; i < currentGrid.length; i++) {
+					line = currentGrid[i];
+					totalLine = 0;
+					for (var j = 0; j < line.length; j++) {
+						totalLine += line[j];
+					}
+					if (totalLine == 10) {
+						destroy++;
+						// ligne complète
+						nbLineDestroy++;
+						if (nbLineDestroy % 10 == 0 && currentSpeed > 100) {
+							// augmentation de la vitesse de jeu toutes les 10 lignes
+							currentSpeed = currentSpeed - 50;
+							speed = currentSpeed;
+						}
+						// score ligne
+						totalScore += lineDestroyScore;
+						// suppression de la ligne
+						grid.splice(i,1);
+						currentGrid.splice(i,1);
+						// ajout ligne vide en première position
+						grid.splice(0,0,[0,0,0,0,0,0,0,0,0,0]);
+						currentGrid.splice(0,0,[0,0,0,0,0,0,0,0,0,0]);
+					}
+				}
+				if (destroy == 2) {
+					// score combo
+					totalScore += comboScore;
+					updateScore("COMBO");
+				} else if (destroy == 3) {
+					// score triple
+					totalScore += tripleScore;
+					updateScore("TRIPLE");
+				} else if (destroy == 4) {
+					// score tetris
+					totalScore += tetrisScore;
+					updateScore("TETRIS");
+				} else {
+					// mise à jour score
+					updateScore();
+				}
+			};
+			var makeCanvasGrid = function () {
+				Canvas.clearContext(self.dom.canvas);
+				var line = null,
+					pos = null;
+				for (var i = 0; i < currentGrid.length; i++) {
+					line = currentGrid[i];
+					for (var j = 0; j < line.length; j++) {
+						pos = line[j];
+						if (pos == 1) {
+							if (grid[i][j] == 0) {
+								Canvas.setStyle(self.dom.canvas,currentPiece.color);
+							} else {
+								Canvas.setStyle(self.dom.canvas,"#000000");
+							}
+							Canvas.drawSquare(self.dom.canvas,j*20+1,i*20+1,18);
+						}
+					}
+				}
+			};
+			var makeCanvasNext = function () {
+				var ctxNext = self.dom.canvasNextPiece.getContext('2d');
+				Canvas.initContext(self.dom.canvasNextPiece);
+				Canvas.clearContext(self.dom.canvasNextPiece);
+				// restore final !
+				ctxNext.restore();
+			
+				Canvas.setPath("fill");
+				Canvas.setStyle(self.dom.canvasNextPiece,nextPiece.color);
+				for (var i = 0; i < nextPiece.matrix[sensPosition].length; i++) {
+					line = nextPiece.matrix[sensPosition][i];
+					for (var j = 0; j < line.length; j++) {
+						pos = line[j];
+						if (pos == 1) {
+							Canvas.drawSquare(self.dom.canvasNextPiece,j*20+1,i*20+1,18);
+						}
+					}
+				}
+			};
+			var updateScore = function (msg) {
+				msg = msg || "";
+				var text = "Nombre ligne : "+nbLineDestroy
+						 + "<br>"
+						 + "Score : "+totalScore;
+				var top = "<br>"
+						+ "<b>Top score : "+topScore+"</b>";
+				self.dom.score.innerHTML = text
+										 + "<br>"
+										 + "<b style='color:red'>"+msg+"</b>"
+										 + top;
+				if (msg != "") {
+					setTimeout(function () {
+						self.dom.score.innerHTML = text + "<br>" + top;
+					},1000)
+				}
+			};
+			var canMoveTest = function (horiPos,sensPos) {
+				var canMove = true;
+				try {
+					if ((grid.length <= iteration)
+						 || (grid[iteration][horiPos] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 1][0] == 1)
+						 || (currentPiece.y[sensPos] > 1 && grid[iteration][horiPos+1] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 1][1] == 1)
+						 || (currentPiece.y[sensPos] > 2 && grid[iteration][horiPos+2] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 1][2] == 1)
+						 || (currentPiece.y[sensPos] > 3 && grid[iteration][horiPos+3] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 1][3] == 1)
+						 || (iteration>0 && grid[iteration-1][horiPos] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 2][0] == 1)
+						 || (iteration>0 && currentPiece.y[sensPos] > 1 && grid[iteration-1][horiPos+1] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 2][1] == 1)
+						 || (iteration>0 && currentPiece.y[sensPos] > 2 && grid[iteration-1][horiPos+2] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 2][2] == 1)
+						 || (iteration>0 && currentPiece.y[sensPos] > 3 && grid[iteration-1][horiPos+3] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 2][3] == 1)
+						 || (iteration>1 && grid[iteration-2][horiPos] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 2][0] == 1)
+						 || (iteration>1 && currentPiece.y[sensPos] > 1 && grid[iteration-2][horiPos+1] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 3][1] == 1)
+						 || (iteration>1 && currentPiece.y[sensPos] > 2 && grid[iteration-2][horiPos+2] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 3][2] == 1)
+						 || (iteration>1 && currentPiece.y[sensPos] > 3 && grid[iteration-2][horiPos+3] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 3][3] == 1)
+						 || (iteration>2 && grid[iteration-2][horiPos] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 2][0] == 1)
+						 || (iteration>2 && currentPiece.y[sensPos] > 1 && grid[iteration-3][horiPos+1] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 4][1] == 1)
+						 || (iteration>2 && currentPiece.y[sensPos] > 2 && grid[iteration-3][horiPos+2] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 4][2] == 1)
+						 || (iteration>2 && currentPiece.y[sensPos] > 3 && grid[iteration-3][horiPos+3] == 1 && currentPiece.matrix[sensPos][currentPiece.x[sensPos] - 4][3] == 1)) {
+						canMove = false;
+					}
+				} catch (e) {
+					// gestion erreur
+				}
+				return canMove;
+			};
+			var moveAction = function () {
+				for (var i = 0; i < grid.length; i++) {
+					for (var j = 0; j < grid[i].length; j++) {
+						currentGrid[i][j] = grid[i][j];
+					}
+				}
+				var translate = 0;
+				if ((currentPiece.x[sensPosition] - 1) < iteration) {
+					translate = iteration - (currentPiece.x[sensPosition] - 1);
+				}
+				for (var ite = iteration; ite>=translate; ite--) {
+					if ((currentPiece.x[sensPosition] - 1 - iteration + ite) >= 0) {
+						if (currentGrid[ite][horizontalPosition] == 0) {
+							currentGrid[ite][horizontalPosition] = currentPiece.matrix[sensPosition][currentPiece.x[sensPosition] - 1 - iteration + ite][0];
+						}
+						if (currentPiece.y[sensPosition] > 1 && currentGrid[ite][horizontalPosition+1] == 0) {
+							// cas piece sur 2 colonnes
+							currentGrid[ite][horizontalPosition+1] = currentPiece.matrix[sensPosition][currentPiece.x[sensPosition] - 1 - iteration + ite][1];
+						}
+						if (currentPiece.y[sensPosition] > 2 && currentGrid[ite][horizontalPosition+2] == 0) {
+							// cas piece sur 3 colonnes
+							currentGrid[ite][horizontalPosition+2] = currentPiece.matrix[sensPosition][currentPiece.x[sensPosition] - 1 - iteration + ite][2];
+						}
+						if (currentPiece.y[sensPosition] > 3 && currentGrid[ite][horizontalPosition+3] == 0) {
+							// cas piece sur 4 colonnes
+							currentGrid[ite][horizontalPosition+3] = currentPiece.matrix[sensPosition][currentPiece.x[sensPosition] - 1 - iteration + ite][3];
+						}
+					}
+				}
+			};
+			var left = function () {
+				var horizontalPositionTmp = horizontalPosition-1;
+				if (horizontalPositionTmp < 0) {
+					horizontalPosition = 0;
+				} else if (canMoveTest(horizontalPositionTmp,sensPosition)) {
+					horizontalPosition = horizontalPositionTmp;
+					moveAction();
+					// dessine le tetris
+					makeCanvasGrid();
+				}
+			};
+			var right = function () {
+				var horizontalPositionTmp = horizontalPosition+1;
+				if (horizontalPositionTmp > (10-currentPiece.y[sensPosition])) {
+					horizontalPosition = (10-currentPiece.y[sensPosition]);
+				} else if (canMoveTest(horizontalPositionTmp,sensPosition)) {
+					horizontalPosition = horizontalPositionTmp;
+					moveAction();
+					// dessine le tetris
+					makeCanvasGrid();
+				}
+			};
+			var turnLeft = function () {
+				// tourne la pièce vers la gauche
+				var tempSens = sensPosition - 1;
+				if (tempSens<0) tempSens = 3;
+				if (horizontalPosition < (10-currentPiece.y[tempSens]+1)) {
+					if (canMoveTest(horizontalPosition,tempSens)) {
+						sensPosition = tempSens;
+						moveAction();
+						// dessine le tetris
+						makeCanvasGrid();
+					}
+				}
+			};
+			var turnRight = function () {
+				// tourne la pièce vers la droite
+				var tempSens = sensPosition + 1;
+				if (tempSens>3) tempSens = 0;
+				if (horizontalPosition < (10-currentPiece.y[tempSens]+1)) {
+					if (canMoveTest(horizontalPosition,tempSens)) {
+						sensPosition = tempSens;
+						moveAction();
+						// dessine le tetris
+						makeCanvasGrid();
+					}
+				}
+			};
+			var down = function () {
+				// fait tomber la pièce en bas
+				currentSpeed = maxSpeed;
+				clearInterval(interval);
+				startGame();
+			};
+			/** 
+			*		Partie Evènement 
+			**/			
+			var keyDown = function (e) {
+				var keyCode = getKeyCode(e);
+				if (currentPiece != null && interval != null) { // si une pièce
+					switch (keyCode) {
+						case 37 : case 412 : // LEFT 
+							left();
+							stopPropagation(e);
+							break;
+						case 39 : case 417 : // RIGHT
+							right();
+							stopPropagation(e);
+							break;
+						case 40 : // DOWN
+							turnRight();
+							stopPropagation(e);
+							break;
+						case 38 : // UP
+							turnLeft();
+							stopPropagation(e);
+							break;
+						case 13 : // enter
+							down();
+							stopPropagation(e);
+							break;
+						case 78 : case 406 : // N
+							newGame();
+							stopPropagation(e);
+							break;
+						case 80 : case 415 : // P
+							pause();
+							stopPropagation(e);
+							break;
+						default : 
+							stopPropagation(e);
+							break; 
+					}
+				} else {
+					switch (keyCode) {
+						case 78 : case 406 : // N
+							newGame();
+							stopPropagation(e);
+							break;
+						case 80 : case 415 : // P
+							pause();
+							stopPropagation(e);
+							break;
+						default : 
+							stopPropagation(e);
+							break; 
+					}				
+				}
+			};	
+			document.onkeydown = function (e) {
+				keyDown(e);
+			};
+		};
+		var saveTopScore = function (topScore) {
+			self.options.saveTopScore(topScore);
+		};
+		var loadTopScore = function () {
+			var topScore = self.options.loadTopScore();
+			return topScore;
+		};
+		
+		return function (options) {
+			
+			setOptions(options);
+			createNodes();
+			updateText();
+			addEventListeners();
+			ready();
+			
+			return self;
+		};
+	})();
+	
+	
+	function loadPage () {
+		
+		new TetrisCanvas({
+			loadTopScore : function () {
+				return localStorage.getItem("topScore");
+			},
+			saveTopScore : function (score) {
+				localStorage.setItem("topScore",score);
+			}
+		});
+		
+	}
+</script>
+
+</head>
+<body onload="loadPage();"></body>
+</html>
+
